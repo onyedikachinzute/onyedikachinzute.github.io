@@ -108,3 +108,17 @@ window.addEventListener('scroll', () => {
 backToTop.addEventListener('click', (e) => {
   // standard smooth scroll handled by anchor click handler above
 });
+
+/* Scroll reveal animations */
+const revealElements = document.querySelectorAll('.section, .hero-left, .hero-right, .card');
+
+const revealObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+      revealObserver.unobserve(entry.target);
+    }
+  });
+}, { threshold: 0.15 });
+
+revealElements.forEach(el => revealObserver.observe(el));
