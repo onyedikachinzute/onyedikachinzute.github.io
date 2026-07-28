@@ -25,5 +25,10 @@
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
+  <url>
+    <loc>https://onyedikachinzute.github.io/projects/afk-descriptor-screen.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
   <!-- SITEMAP_INSERT -->
 </urlset>

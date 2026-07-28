@@ -19,6 +19,11 @@
       "slug": "to-do-list",
       "title": "Kachi's To-Do List",
       "featured": false
+    },
+    {
+      "slug": "afk-descriptor-screen",
+      "title": "Afk Descriptor Screen",
+      "featured": false
     }
   ]
 }

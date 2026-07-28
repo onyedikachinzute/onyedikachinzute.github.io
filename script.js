@@ -178,16 +178,47 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /* -------------------------
+     Extension-agnostic image resolution
+     Given a base path with no extension (e.g. "projects/screenshots/x/01"),
+     try each candidate extension in order and resolve with the first one
+     that actually loads. Lets screenshots be a mix of .png/.jpg/.jpeg/.webp
+     without any per-project configuration.
+     If the given path already has a recognized extension, it's tried as-is
+     first (so old-style hardcoded paths with an extension still work).
+     ------------------------- */
+  const SHOT_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp'];
+
+  function resolveImage(basePath) {
+    return new Promise(resolve => {
+      const hasExt = /\.(png|jpe?g|webp|gif)$/i.test(basePath);
+      const candidates = hasExt
+        ? [basePath, ...SHOT_EXTENSIONS.map(ext => `${basePath}.${ext}`)]
+        : SHOT_EXTENSIONS.map(ext => `${basePath}.${ext}`);
+
+      let i = 0;
+      function tryNext() {
+        if (i >= candidates.length) { resolve(null); return; }
+        const src = candidates[i++];
+        const img = new Image();
+        img.onload = () => resolve(src);
+        img.onerror = tryNext;
+        img.src = src;
+      }
+      tryNext();
+    });
+  }
+
+  /* -------------------------
      Featured card screenshots
-     Each project-card can carry data-shot="projects/screenshots/<slug>/01.jpg".
-     If the image loads, it replaces the icon visual; if it 404s, the
-     original icon placeholder is left untouched — nothing breaks.
+     Each project-card can carry data-shot="projects/screenshots/<slug>/01"
+     (extension omitted — resolveImage figures out which format exists).
+     If nothing loads, the original icon placeholder is left untouched.
      ------------------------- */
   document.querySelectorAll('.pc-visual[data-shot]').forEach(visual => {
-    const src = visual.getAttribute('data-shot');
-    if (!src) return;
-    const img = new Image();
-    img.onload = () => {
+    const base = visual.getAttribute('data-shot');
+    if (!base) return;
+    resolveImage(base).then(src => {
+      if (!src) return; /* no screenshot in any format yet — keep the icon */
       visual.classList.add('has-shot');
       const shotEl = document.createElement('img');
       shotEl.src = src;
@@ -198,15 +229,15 @@ document.addEventListener('DOMContentLoaded', () => {
       visual.prepend(fade);
       visual.prepend(shotEl);
       requestAnimationFrame(() => shotEl.classList.add('loaded'));
-    };
-    img.onerror = () => { /* no screenshot yet — keep the icon placeholder */ };
-    img.src = src;
+    });
   });
 
   /* -------------------------
      Screenshot gallery + lightbox (project detail pages)
-     Gallery container: <div class="shot-gallery" data-shots='["projects/screenshots/x/01.jpg", ...]'>
-     Missing files are silently skipped; if none load, the section stays hidden.
+     Gallery container: <div class="shot-gallery" data-shots='["projects/screenshots/x/01", ...]'>
+     Base paths with no extension are resolved against several formats;
+     missing files (no format found) are silently skipped. If none load,
+     the section stays hidden via the "empty" class.
      ------------------------- */
   const galleries = document.querySelectorAll('.shot-gallery[data-shots]');
   if (galleries.length) {
@@ -257,24 +288,12 @@ document.addEventListener('DOMContentLoaded', () => {
       try { shots = JSON.parse(gallery.getAttribute('data-shots')); } catch (e) { shots = []; }
       if (!shots.length) return;
 
-      const loadedShots = [];
-      let pending = shots.length;
-
-      shots.forEach(src => {
-        const probe = new Image();
-        probe.onload = () => {
-          loadedShots.push(src);
-          pending -= 1;
-          if (pending === 0) renderGallery();
-        };
-        probe.onerror = () => {
-          pending -= 1;
-          if (pending === 0) renderGallery();
-        };
-        probe.src = src;
+      Promise.all(shots.map(resolveImage)).then(resolved => {
+        const loadedShots = resolved.filter(Boolean);
+        renderGallery(loadedShots);
       });
 
-      function renderGallery() {
+      function renderGallery(loadedShots) {
         if (!loadedShots.length) { gallery.classList.add('empty'); return; }
         gallery.classList.remove('empty');
         loadedShots.forEach((src, i) => {
