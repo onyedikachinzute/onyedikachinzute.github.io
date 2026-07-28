@@ -499,7 +499,13 @@ def main():
     # ---- Build shots_json ----
     # No extension baked in here — script.js tries multiple extensions per
     # slot at load time, so you can mix .png and .jpg freely across shots.
-    shots = [f"screenshots/{slug}/0{i}" for i in range(1, 5)]
+    shot_count_raw = ask("How many screenshot slots to reserve?", default="4")
+    try:
+        shot_count = max(1, int(shot_count_raw))
+    except ValueError:
+        shot_count = 4
+    pad = 2 if shot_count < 100 else 3
+    shots = [f"screenshots/{slug}/{str(i).zfill(pad)}" for i in range(1, shot_count + 1)]
     shots_json = json.dumps(shots)
 
     # ---- Determine next-project chain ----
@@ -629,7 +635,7 @@ def main():
 
     print("\n=== Done ===")
     print(f"New page: projects/{slug}.html")
-    print(f"Add screenshots to: projects/screenshots/{slug}/01.png (or .jpg — up to 04, either format works)")
+    print(f"Add screenshots to: projects/screenshots/{slug}/01.png (or .jpg, up through {str(shot_count).zfill(pad)} — either format works)")
     print("\nWhen ready, push it live:")
     print("  git add .")
     print(f'  git commit -m "Add {title} project"')

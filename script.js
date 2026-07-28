@@ -190,10 +190,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function resolveImage(basePath) {
     return new Promise(resolve => {
-      const hasExt = /\.(png|jpe?g|webp|gif)$/i.test(basePath);
-      const candidates = hasExt
-        ? [basePath, ...SHOT_EXTENSIONS.map(ext => `${basePath}.${ext}`)]
-        : SHOT_EXTENSIONS.map(ext => `${basePath}.${ext}`);
+      const extMatch = basePath.match(/\.(png|jpe?g|webp|gif)$/i);
+      const bareBase = extMatch ? basePath.slice(0, -extMatch[0].length) : basePath;
+      // Try the path exactly as given first (covers any non-standard
+      // extension), then every known extension against the bare base —
+      // never appended on top of an existing extension.
+      const candidates = extMatch
+        ? [basePath, ...SHOT_EXTENSIONS.map(ext => `${bareBase}.${ext}`)]
+        : SHOT_EXTENSIONS.map(ext => `${bareBase}.${ext}`);
 
       let i = 0;
       function tryNext() {
