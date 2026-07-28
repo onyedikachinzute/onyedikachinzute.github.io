@@ -70,6 +70,17 @@ def ask(prompt, default=None, required=False):
         return val
 
 
+def ask_multiline(prompt):
+    print(f"{prompt} (multiple lines OK, blank line to finish):")
+    lines = []
+    while True:
+        line = input("  ").strip()
+        if not line:
+            break
+        lines.append(line)
+    return " ".join(lines)
+
+
 def ask_yes_no(prompt, default=True):
     d = "Y/n" if default else "y/N"
     val = input(f"{prompt} [{d}]: ").strip().lower()
@@ -228,15 +239,26 @@ DETAIL_PAGE_TEMPLATE = """<!DOCTYPE html>
       <h2>Overview</h2>
       <p>{description}</p>
 
+      <h2>The Idea</h2>
+      <p>{idea}</p>
+
       <div class="shot-section">
         <h2>Screenshots</h2>
         <div class="shot-gallery empty" data-shots='{shots_json}'></div>
       </div>
 
+      <h2>How It Works</h2>
+      <ul>
+{how_it_works_html}
+      </ul>
+
       <h2>Features</h2>
       <ul>
 {features_html}
       </ul>
+
+      <h2>What's Next</h2>
+      <p>{whats_next}</p>
 
       <h2>Getting started</h2>
       <div class="code-block">
@@ -298,7 +320,7 @@ cd {repo_name}<br>
 """
 
 FEATURED_CARD_TEMPLATE = """      <a class="project-card reveal" href="projects/{slug}.html">
-        <div class="pc-visual" data-shot="projects/screenshots/{slug}/01.jpg">
+        <div class="pc-visual" data-shot="projects/screenshots/{slug}/01">
           <span class="pc-glyph mono">{glyph}</span>
           <span class="corner tl"></span><span class="corner br"></span>
           <div class="icon-badge">
@@ -407,9 +429,25 @@ def main():
     default_desc = gh_description or "A project built to solve a real, specific problem."
     description = ask("Short description (1-2 sentences)", default=default_desc, required=True)
 
+    print("\n--- The Idea (why you built it / the problem it solves) ---")
+    idea = ask_multiline("Describe the idea/motivation behind the project")
+    if not idea:
+        idea = description
+
     default_tags = ", ".join([primary_language] + topics[:4]) if topics else primary_language
     tags_raw = ask("Tags, comma-separated", default=default_tags, required=True)
     tags = [t.strip() for t in tags_raw.split(",") if t.strip()]
+
+    print("\n--- How It Works (technical breakdown, shown as bullets) ---")
+    how_it_works = []
+    print("Enter how-it-works bullets one at a time. Blank line to finish.")
+    while True:
+        line = input(f"  Step {len(how_it_works) + 1}: ").strip()
+        if not line:
+            break
+        how_it_works.append(line)
+    if not how_it_works:
+        how_it_works = ["Built with " + primary_language + "."]
 
     print("\n--- Features (for the 'Features' list on the detail page) ---")
     features = []
@@ -429,6 +467,11 @@ def main():
             features.append(line)
     if not features:
         features = [description]
+
+    print("\n--- What's Next (future plans / roadmap) ---")
+    whats_next = ask_multiline("What's next for this project")
+    if not whats_next:
+        whats_next = "Still actively maintained — more improvements planned as the project evolves."
 
     print("\n--- Card appearance ---")
     for key, (label, _) in ICON_LIBRARY.items():
@@ -454,7 +497,9 @@ def main():
     is_featured = ask_yes_no("\nShow this in the big Featured Projects section?", default=False)
 
     # ---- Build shots_json ----
-    shots = [f"screenshots/{slug}/0{i}.jpg" for i in range(1, 5)]
+    # No extension baked in here — script.js tries multiple extensions per
+    # slot at load time, so you can mix .png and .jpg freely across shots.
+    shots = [f"screenshots/{slug}/0{i}" for i in range(1, 5)]
     shots_json = json.dumps(shots)
 
     # ---- Determine next-project chain ----
@@ -468,17 +513,21 @@ def main():
 
     tags_html_detail = "".join(f"<span>{t}</span>\n      " for t in tags).strip()
     features_html = "\n".join(f"        <li><strong>{f.split(':')[0].strip()}</strong>{':' + f.split(':',1)[1] if ':' in f else ''}</li>" if ':' in f else f"        <li>{f}</li>" for f in features)
+    how_it_works_html = "\n".join(f"        <li>{s}</li>" for s in how_it_works)
 
     detail_html = DETAIL_PAGE_TEMPLATE.format(
         title=title,
         subtitle=subtitle,
         description=description,
+        idea=idea,
         site_url=SITE_URL,
         slug=slug,
         github_url=github_url,
         repo_name=repo,
         tags_html=tags_html_detail,
+        how_it_works_html=how_it_works_html,
         features_html=features_html,
+        whats_next=whats_next,
         shots_json=shots_json,
         primary_language=primary_language,
         next_slug=first_slug,
@@ -580,7 +629,7 @@ def main():
 
     print("\n=== Done ===")
     print(f"New page: projects/{slug}.html")
-    print(f"Add screenshots to: projects/screenshots/{slug}/01.jpg (up to 04.jpg)")
+    print(f"Add screenshots to: projects/screenshots/{slug}/01.png (or .jpg — up to 04, either format works)")
     print("\nWhen ready, push it live:")
     print("  git add .")
     print(f'  git commit -m "Add {title} project"')
