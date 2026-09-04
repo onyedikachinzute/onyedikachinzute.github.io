@@ -24,6 +24,11 @@
       "slug": "afk-descriptor-screen",
       "title": "Afk Descriptor Screen",
       "featured": false
+    },
+    {
+      "slug": "the-local-tutor",
+      "title": "The Local Tutor",
+      "featured": true
     }
   ]
 }
